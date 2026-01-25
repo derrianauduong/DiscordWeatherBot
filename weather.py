@@ -32,50 +32,38 @@ def geocode_suburb(suburb: str):
     return lat, lon
 
 
-def get_weather(lat, lon):
+def get_weather(lat, lon, event_datetime):
     url = (
         "https://api.open-meteo.com/v1/forecast?"
         f"latitude={lat}&longitude={lon}"
-        "&current_weather=true"
-        "&daily=weathercode,temperature_2m_min,temperature_2m_max,precipitation_probability_max"
+        "&hourly=weathercode,temperature_2m,precipitation_probability"
         "&timezone=auto"
     )
     response = requests.get(url).json()
-    
-    current = response["current_weather"]
-    daily = response["daily"]
-    weather_code = daily["weathercode"][0]
-    rain_chance = daily["precipitation_probability_max"][0]
+
+    hourly = response["hourly"]
+    times = hourly["time"]
+
+    # Convert event time to Open-Meteo format
+    target = event_datetime.strftime("%Y-%m-%dT%H:00")
+
+    if target not in times:
+        return f"❌ No weather data available for {event_datetime.strftime('%d %b %I:%M %p')}"
+
+    idx = times.index(target)
+
+    weather_code = hourly["weathercode"][idx]
+    temp = hourly["temperature_2m"][idx]
+    rain_chance = hourly["precipitation_probability"][idx]
 
     weather_types = {
-        0: "Clear sky",
-        1: "Mainly clear",
-        2: "Partly cloudy",
-        3: "Overcast",
-        45: "Fog",
-        48: "Depositing rime fog",
-        51: "Light drizzle",
-        53: "Moderate drizzle",
-        55: "Dense drizzle",
-        56: "Light freezing drizzle",
-        57: "Dense freezing drizzle",
-        61: "Slight rain",
-        63: "Moderate rain",
-        65: "Heavy rain",
-        66: "Light freezing rain",
-        67: "Heavy freezing rain",
-        71: "Slight snow",
-        73: "Moderate snow",
-        75: "Heavy snow",
-        77: "Snow grains",
-        80: "Slight rain showers",
-        81: "Moderate rain showers",
-        82: "Violent rain showers",
-        85: "Slight snow showers",
-        86: "Heavy snow showers",
-        95: "Thunderstorm",
-        96: "Thunderstorm with slight hail",
-        99: "Thunderstorm with heavy hail",
+        0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+        45: "Fog", 48: "Depositing rime fog",
+        51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
+        61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
+        80: "Slight rain showers", 81: "Moderate rain showers", 82: "Violent rain showers",
+        71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+        95: "Thunderstorm", 96: "Thunderstorm w/ slight hail", 99: "Thunderstorm w/ heavy hail"
     }
 
     emoji_icons = {
@@ -83,21 +71,23 @@ def get_weather(lat, lon):
         2: "🌤️",
         3: "☁️",
         45: "🌫️", 48: "🌫️",
-        51: "🌦️", 53: "🌦️", 55: "🌦️", 61: "🌦️",
-        63: "🌧️", 65: "🌧️", 80: "🌧️", 81: "🌧️", 82: "🌧️",
-        71: "❄️", 73: "❄️", 75: "❄️", 77: "❄️", 85: "❄️", 86: "❄️",
+        51: "🌦️", 53: "🌦️", 55: "🌦️",
+        61: "🌧️", 63: "🌧️", 65: "🌧️",
+        80: "🌧️", 81: "🌧️", 82: "🌧️",
+        71: "❄️", 73: "❄️", 75: "❄️",
         95: "⛈️", 96: "⛈️", 99: "⛈️",
     }
 
-    return {
-        "code": weather_code,
-        "description": weather_types.get(weather_code, "Unknown"),
-        "emoji": emoji_icons.get(weather_code, "❓"),
-        "temp": current["temperature"],
-        "min_temp": daily["temperature_2m_min"][0],
-        "max_temp": daily["temperature_2m_max"][0],
-        "rain_chance": rain_chance,
-    }
+    description = weather_types.get(weather_code, "Unknown")
+    emoji = emoji_icons.get(weather_code, "❓")
+
+    # ⭐ Beautiful multi-line formatted output
+    return (
+        f"{emoji} **Weather at {event_datetime.strftime('%I:%M %p')}**\n"
+        f"**Condition:** {description}\n"
+        f"**Temperature:** {temp}°C\n"
+        f"**Rain Chance:** {rain_chance}%\n"
+    )
 
 def needs_umbrella(weather):
     code = weather["code"]
@@ -112,5 +102,6 @@ def needs_umbrella(weather):
         return True
 
     return False
+
 
 
