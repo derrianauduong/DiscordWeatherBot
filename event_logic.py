@@ -80,7 +80,8 @@ def get_weather_recommendations(events):
             if coords:
                 lat, lon = coords
 
-        weather = get_weather(lat, lon)
+        event_time = parser.parse(event["start"]["dateTime"])
+        weather = get_weather(lat, lon, event_time)
         umbrella = needs_umbrella(weather)
 
         recommendations.append({
@@ -90,3 +91,4 @@ def get_weather_recommendations(events):
         })
 
     return recommendations
+
