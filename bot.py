@@ -24,7 +24,7 @@ async def daily_check():
 
     # Run at 7:00 AM Sydney time
     if now.hour == 7 and now.minute == 0:
-        channel = bot.get_channel(1463507490720448678)
+        channel = bot.get_channel("DISCORD_CHANNEL_ID")
 
         events = get_going_out_events(service)
         if not events:
@@ -32,7 +32,7 @@ async def daily_check():
 
         recs = get_weather_recommendations(events)
 
-        message = f"<@{467970434235891712}> **Today's Going-Out Weather Summary:**\n\n"
+        message = f"<@{"DISCORD_USER_ID"}> **Today's Going-Out Weather Summary:**\n\n"
         for r in recs:
             event = r["event"]
             weather = r["weather"]
@@ -128,3 +128,4 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
