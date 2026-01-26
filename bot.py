@@ -19,12 +19,19 @@ service = get_calendar_service()
 
 @tasks.loop(minutes=1)
 async def daily_check():
+    global last_run_date
+
     tz = pytz.timezone("Australia/Sydney")
     now = datetime.now(tz)
 
-    # Run at 7:00 AM Sydney time
     if now.hour == 7 and now.minute == 0:
-        channel = bot.get_channel("DISCORD_CHANNEL_ID")
+        if last_run_date == now.date():
+            return
+
+        last_run_date = now.date()
+
+        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+        user_id = int(os.getenv("DISCORD_USER_ID"))
 
         events = get_going_out_events(service)
         if not events:
@@ -32,7 +39,7 @@ async def daily_check():
 
         recs = get_weather_recommendations(events)
 
-        message = f"<@{"DISCORD_USER_ID"}> **Today's Going-Out Weather Summary:**\n\n"
+        message = f"<@{user_id}> **Today's Going-Out Weather Summary:**\n\n"
         for r in recs:
             event = r["event"]
             weather = r["weather"]
@@ -128,4 +135,5 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
