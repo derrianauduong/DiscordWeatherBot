@@ -68,11 +68,11 @@ async def ping(ctx):
 
 @bot.command()
 async def weather(ctx):
-    # Sydney coordinates
     lat = -33.8688
     lon = 151.2093
+    now = datetime.now(pytz.timezone("Australia/Sydney"))
 
-    report = get_weather(lat, lon)
+    report = get_weather(lat, lon, now)
     await ctx.send(report)
 
 @bot.tree.command(name="events", description="Show today's calendar events")
@@ -85,7 +85,7 @@ async def events(interaction: discord.Interaction):
         await interaction.followup.send("No events scheduled for today.")
         return
 
-    message = "**Today's Going-Out Events:**\n"
+    message = "**Today's Events:**\n"
     for event in events:
         start_str = event["start"].get("dateTime")
 
@@ -135,5 +135,6 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
 
