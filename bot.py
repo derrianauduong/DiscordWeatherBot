@@ -17,6 +17,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 service = get_calendar_service()
 
+last_run_date = None
+
 @tasks.loop(minutes=1)
 async def daily_check():
     global last_run_date
@@ -24,10 +26,7 @@ async def daily_check():
     tz = pytz.timezone("Australia/Sydney")
     now = datetime.now(tz)
 
-    if now.hour == 7 and now.minute == 0:
-        if last_run_date == now.date():
-            return
-
+    if now.hour == 7 and last_run_date != now.date():
         last_run_date = now.date()
 
         channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
@@ -135,6 +134,7 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
 
 
