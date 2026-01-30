@@ -63,6 +63,8 @@ async def on_ready():
 
 @bot.command()
 async def ping(ctx):
+    channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+    await channel.send(f"<@{user_id}> Ping Working!")
     await ctx.send("Pong!")
 
 @bot.command()
@@ -134,6 +136,7 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
 
 
