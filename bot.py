@@ -63,7 +63,9 @@ async def on_ready():
 
 @bot.command()
 async def ping(ctx):
-    await ctx.send("Pong!")
+    channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+    user_id = int(os.getenv("DISCORD_USER_ID"))
+    await channel.send(f"<@{user_id}>")
 
 @bot.command()
 async def weather(ctx):
@@ -134,6 +136,7 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
 
 
