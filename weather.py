@@ -37,6 +37,7 @@ def get_weather(lat, lon, event_datetime):
         "https://api.open-meteo.com/v1/forecast?"
         f"latitude={lat}&longitude={lon}"
         "&hourly=weathercode,temperature_2m,precipitation_probability"
+        "&daily=temperature_2m_max,temperature_2m_min"
         "&timezone=auto"
     )
     response = requests.get(url).json()
@@ -55,6 +56,8 @@ def get_weather(lat, lon, event_datetime):
     weather_code = hourly["weathercode"][idx]
     temp = hourly["temperature_2m"][idx]
     rain_chance = hourly["precipitation_probability"][idx]
+    temp_max = response["daily"]["temperature_2m_max"][0]
+    temp_min = response["daily"]["temperature_2m_min"][0]
 
     weather_types = {
         0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
@@ -85,7 +88,9 @@ def get_weather(lat, lon, event_datetime):
     return (
         f"{emoji} **Weather at {event_datetime.strftime('%I:%M %p')}**\n"
         f"**Condition:** {description}\n"
-        f"**Temperature:** {temp}°C\n"
+        f"**Current Temperature:** {temp}°C\n"
+        f"**Today's Min:** {temp_min}°C\n"
+        f"**Today's Max:** {temp_max}°C\n"
         f"**Rain Chance:** {rain_chance}%\n"
     )
 
@@ -102,6 +107,7 @@ def needs_umbrella(weather):
         return True
 
     return False
+
 
 
 
