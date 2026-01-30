@@ -38,7 +38,7 @@ async def daily_check():
 
         recs = get_weather_recommendations(events)
 
-        message = f"<@{user_id}> **Today's Going-Out Weather Summary:**\n\n"
+        message = f"<@{user_id}> **Today's Going-Out Weather Summary:**\n"
         for r in recs:
             event = r["event"]
             weather = r["weather"]
@@ -136,6 +136,7 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
 
 
