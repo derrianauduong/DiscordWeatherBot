@@ -24,12 +24,8 @@ async def daily_check():
     global last_run_date
     tz = pytz.timezone("Australia/Sydney")
     now = datetime.now(tz)
-    print(f"Time check before heartbeat: It is currently {now.strftime('%H:%M')}. Last run: {last_run_date}")
-    # Print this so you can see it in Railway logs
-    if now.minute == 0: 
-        print(f"Heartbeat: It is currently {now.strftime('%H:%M')}. Last run: {last_run_date}")
-
-    if now.hour == 7 and last_run_date != now.date():
+    
+    if now.hour >= 7 and last_run_date != now.date():
         print("Attempting to send daily weather update...")
         last_run_date = now.date()
 
@@ -140,6 +136,7 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
 
 
