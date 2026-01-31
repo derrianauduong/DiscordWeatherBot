@@ -24,34 +24,47 @@ async def daily_check():
     global last_run_date
     tz = pytz.timezone("Australia/Sydney")
     now = datetime.now(tz)
-    
+
+    print("daily_check tick:", now)
+
     if now.hour >= 7 and last_run_date != now.date():
         print("Attempting to send daily weather update...")
         last_run_date = now.date()
 
-        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-        user_id = int(os.getenv("DISCORD_USER_ID"))
+        try:
+            channel_id = int(os.getenv("DISCORD_CHANNEL_ID"))
+            channel = bot.get_channel(channel_id)
+            if channel is None:
+                print("Channel not cached, fetching...")
+                channel = await bot.fetch_channel(channel_id)
 
-        events = get_going_out_events(service)
-        if not events:
-            return
+            user_id = int(os.getenv("DISCORD_USER_ID"))
 
-        recs = get_weather_recommendations(events)
+            events = get_going_out_events(service)
+            if not events:
+                print("No going-out events today.")
+                return
 
-        message = f"<@{user_id}> **Today's Going-Out Weather Summary:**\n"
-        for r in recs:
-            event = r["event"]
-            weather = r["weather"]
-            umbrella = r["umbrella"]
+            recs = get_weather_recommendations(events)
 
-            start = event["start"].get("dateTime", event["start"].get("date"))
-            summary = event["summary"]
+            message = f"<@{user_id}> **Today's Going-Out Weather Summary:**\n"
+            for r in recs:
+                event = r["event"]
+                weather = r["weather"]
+                umbrella = r["umbrella"]
 
-            message += f"- **{summary}** at `{start}`\n"
-            message += f"Weather: {weather['description']}\n"
-            message += "→ Bring an umbrella.\n\n" if umbrella else "→ No umbrella needed.\n\n"
+                start = event["start"].get("dateTime", event["start"].get("date"))
+                summary = event["summary"]
 
-        await channel.send(message)
+                message += f"- **{summary}** at `{start}`\n"
+                message += f"Weather: {weather['description']}\n"
+                message += "→ Bring an umbrella.\n\n" if umbrella else "→ No umbrella needed.\n\n"
+
+            await channel.send(message)
+            print("Daily summary sent.")
+
+        except Exception as e:
+            print("Error in daily_check:", repr(e))
 
 @bot.event
 async def on_ready():
@@ -136,6 +149,7 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
 
 
