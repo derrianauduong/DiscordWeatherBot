@@ -69,19 +69,36 @@ def get_weather_recommendations(events):
     recommendations = []
 
     for event in events:
+        summary = event.get("summary", "Untitled Event")
         location = event.get("location", "")
         suburb = extract_suburb(location)
 
-        # Default to Sydney CBD
+        # 1. Handle coordinates (Default to Sydney CBD)
         lat, lon = -33.8688, 151.2093
-
         if suburb:
             coords = geocode_suburb(suburb)
             if coords:
                 lat, lon = coords
 
-        event_time = parser.parse(event["start"]["dateTime"])
+        # 2. Fix the Parser Error & Handle All-Day events
+        start_info = event.get("start", {})
+        start_str = start_info.get("dateTime") or start_info.get("date")
+
+        if not start_str:
+            continue # Skip if no date info found
+
+        if "T" in start_str:
+            # Timed event: 2026-02-02T11:00:00Z
+            event_time = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+        else:
+            # All-day event: 2026-02-02
+            event_time = datetime.strptime(start_str, "%Y-%m-%d")
+
+        # 3. Get weather (Now including Min/Max)
+        # Ensure your get_weather function returns a dict with 'max' and 'min'
         weather = get_weather(lat, lon, event_time)
+        
+        # 4. Check for umbrella
         umbrella = needs_umbrella(weather)
 
         recommendations.append({
@@ -91,4 +108,3 @@ def get_weather_recommendations(events):
         })
 
     return recommendations
-
