@@ -25,46 +25,38 @@ async def daily_check():
     tz = pytz.timezone("Australia/Sydney")
     now = datetime.now(tz)
 
-    print("daily_check tick:", now)
+    # 1. Check time and date
+    if now.hour == 7 and last_run_date != now.date():
+        print(f"Check triggered at {now}")
+        
+        events = get_going_out_events(service)
+        
+        if not events:
+            # OPTIONAL: Don't set last_run_date here if you want it to 
+            # keep checking every minute until an event is found 
+            # (though usually, if it's empty at 7am, it stays empty).
+            print("No events found. Skipping today.")
+            last_run_date = now.date() 
+            return
 
-    if now.hour >= 7 and last_run_date != now.date():
-        print("Attempting to send daily weather update...")
-        last_run_date = now.date()
+        # 2. Get Channel (Use fetch to be safe)
+        channel_id = int(os.getenv("DISCORD_CHANNEL_ID"))
+        channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+        user_id = os.getenv("DISCORD_USER_ID")
 
-        try:
-            channel_id = int(os.getenv("DISCORD_CHANNEL_ID"))
-            channel = bot.get_channel(channel_id)
-            if channel is None:
-                print("Channel not cached, fetching...")
-                channel = await bot.fetch_channel(channel_id)
-
-            user_id = int(os.getenv("DISCORD_USER_ID"))
-
-            events = get_going_out_events(service)
-            if not events:
-                print("No going-out events today.")
-                return
-
-            recs = get_weather_recommendations(events)
-
-            message = f"<@{user_id}> **Today's Going-Out Weather Summary:**\n"
-            for r in recs:
-                event = r["event"]
-                weather = r["weather"]
-                umbrella = r["umbrella"]
-
-                start = event["start"].get("dateTime", event["start"].get("date"))
-                summary = event["summary"]
-
-                message += f"- **{summary}** at `{start}`\n"
-                message += f"Weather: {weather['description']}\n"
-                message += "→ Bring an umbrella.\n\n" if umbrella else "→ No umbrella needed.\n\n"
-
-            await channel.send(message)
-            print("Daily summary sent.")
-
-        except Exception as e:
-            print("Error in daily_check:", repr(e))
+        recs = get_weather_recommendations(events)
+        
+        # 3. Build Message
+        message = f"Hey <@{user_id}>! 📅 **Today's Going-Out Summary:**\n\n"
+        for r in recs:
+            # ... your loop logic ...
+            # Accessing the new min/max:
+            w = r["weather"]
+            message += f"🌡️ Range: {w['min']}°C - {w['max']}°C\n"
+        
+        await channel.send(message)
+        last_run_date = now.date() # Only set this after success
+        print("Daily summary successfully sent.")
 
 @bot.event
 async def on_ready():
@@ -149,15 +141,3 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
-
-
-
-
-
-
-
-
-
-
-
-
