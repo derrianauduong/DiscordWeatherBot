@@ -2,7 +2,7 @@ import pytz
 from datetime import datetime, timedelta
 from weather import extract_suburb, geocode_suburb, get_weather, needs_umbrella
 
-GOING_OUT_KEYWORDS = [ "dinner", "lunch", "gym", "hangout", "party", "appointment", "work", "coffee", "drinks" ]
+GOING_OUT_KEYWORDS = [ "dinner", "lunch", "gym", "hangout", "party", "appointment", "work", "coffee", "drinks", "tutorial" ]
 
 def get_todays_events(service):
     """
@@ -108,3 +108,4 @@ def get_weather_recommendations(events):
         })
 
     return recommendations
+
