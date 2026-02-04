@@ -73,7 +73,6 @@ async def ping(ctx):
     await channel.send(f"<@{user_id}>")
 
 @bot.command()
-@bot.command()
 async def weather(ctx):
     lat = -33.8688
     lon = 151.2093
@@ -146,4 +145,5 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
