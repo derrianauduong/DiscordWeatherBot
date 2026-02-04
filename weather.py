@@ -45,11 +45,10 @@ def get_weather(lat, lon, event_datetime):
     hourly = response["hourly"]
     times = hourly["time"]
 
-    # Convert event time to Open-Meteo format
     target = event_datetime.strftime("%Y-%m-%dT%H:00")
 
     if target not in times:
-        return f"❌ No weather data available for {event_datetime.strftime('%d %b %I:%M %p')}"
+        return None
 
     idx = times.index(target)
 
@@ -81,17 +80,27 @@ def get_weather(lat, lon, event_datetime):
         95: "⛈️", 96: "⛈️", 99: "⛈️",
     }
 
-    description = weather_types.get(weather_code, "Unknown")
-    emoji = emoji_icons.get(weather_code, "❓")
+    return {
+        "code": weather_code,
+        "description": weather_types.get(weather_code, "Unknown"),
+        "emoji": emoji_icons.get(weather_code, "❓"),
+        "temp": temp,
+        "temp_min": temp_min,
+        "temp_max": temp_max,
+        "rain_chance": rain_chance,
+        "event_time": event_datetime
+    }
 
-    # ⭐ Beautiful multi-line formatted output
+def format_weather(weather):
+    dt = weather["event_time"].strftime("%I:%M %p")
+
     return (
-        f"{emoji} **Weather at {event_datetime.strftime('%I:%M %p')}**\n"
-        f"**Condition:** {description}\n"
-        f"**Current Temperature:** {temp}°C\n"
-        f"**Today's Min:** {temp_min}°C\n"
-        f"**Today's Max:** {temp_max}°C\n"
-        f"**Rain Chance:** {rain_chance}%\n"
+        f"{weather['emoji']} **Weather at {dt}**\n"
+        f"**Condition:** {weather['description']}\n"
+        f"**Current Temperature:** {weather['temp']}°C\n"
+        f"**Today's Min:** {weather['temp_min']}°C\n"
+        f"**Today's Max:** {weather['temp_max']}°C\n"
+        f"**Rain Chance:** {weather['rain_chance']}%\n"
     )
 
 def needs_umbrella(weather):
@@ -107,7 +116,3 @@ def needs_umbrella(weather):
         return True
 
     return False
-
-
-
-
