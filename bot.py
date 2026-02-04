@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import pytz
 from datetime import datetime
 from event_logic import get_weather_recommendations, get_todays_events, get_going_out_events
-from weather import get_weather
+from weather import get_weather, format_weather
 from google_auth import get_calendar_service
 import os
 
@@ -73,13 +73,18 @@ async def ping(ctx):
     await channel.send(f"<@{user_id}>")
 
 @bot.command()
+@bot.command()
 async def weather(ctx):
     lat = -33.8688
     lon = 151.2093
     now = datetime.now(pytz.timezone("Australia/Sydney"))
 
-    report = get_weather(lat, lon, now)
-    await ctx.send(report)
+    w = get_weather(lat, lon, now)
+    if not w:
+        await ctx.send("No weather data available.")
+        return
+
+    await ctx.send(format_weather(w))
 
 @bot.tree.command(name="events", description="Show today's calendar events")
 async def events(interaction: discord.Interaction):
@@ -141,3 +146,4 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
