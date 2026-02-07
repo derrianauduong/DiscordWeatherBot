@@ -52,7 +52,7 @@ async def daily_check():
             # ... your loop logic ...
             # Accessing the new min/max:
             w = r["weather"]
-            message += f"🌡️ Range: {w['min']}°C - {w['max']}°C\n"
+            message += f"🌡️ Range: {w['temp_min']}°C - {w['temp_max']}°C\n"
         
         await channel.send(message)
         last_run_date = now.date() # Only set this after success
@@ -145,5 +145,6 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
 
