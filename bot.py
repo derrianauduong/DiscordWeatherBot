@@ -47,12 +47,19 @@ async def daily_check():
         recs = get_weather_recommendations(events)
         
         # 3. Build Message
-        message = f"Hey <@{user_id}>! 📅 **Today's Going-Out Summary:**\n\n"
+        message = f"<@{user_id}> 📅 **Today's Going-Out Summary:**\n\n"
         for r in recs:
-            # ... your loop logic ...
-            # Accessing the new min/max:
-            w = r["weather"]
-            message += f"🌡️ Range: {w['temp_min']}°C - {w['temp_max']}°C\n"
+            event = r["event"]
+            weather = r["weather"]
+            umbrella = r["umbrella"]
+        
+            start = event["start"].get("dateTime", event["start"].get("date"))
+            summary = event["summary"]
+        
+            message += f"- **{summary}** at `{start}`\n"
+            message += f"{weather['emoji']} {weather['description']}\n"
+            message += f"🌡️ Range: {weather['temp_min']}°C – {weather['temp_max']}°C\n"
+            message += "→ Bring an umbrella.\n\n" if umbrella else "→ No umbrella needed.\n\n"
         
         await channel.send(message)
         last_run_date = now.date() # Only set this after success
@@ -145,6 +152,7 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
 
 
 
