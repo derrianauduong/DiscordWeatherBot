@@ -52,16 +52,6 @@ def is_going_out_event(event):
     colour = event.get("colorId")
     if colour == "1":
         return True
-    
-    # 4. If event starts after 5pm
-    start_str = event["start"].get("dateTime")
-    if start_str:
-        start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00")) 
-        sydney = pytz.timezone("Australia/Sydney")
-        local_start = start_dt.astimezone(sydney)
-        
-        if local_start.hour >= 17:
-            return True
         
     return False
 
@@ -108,4 +98,5 @@ def get_weather_recommendations(events):
         })
 
     return recommendations
+
 
