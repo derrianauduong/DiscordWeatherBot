@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from weather import extract_suburb, geocode_suburb, get_weather, needs_umbrella
 
 GOING_OUT_KEYWORDS = [ "dinner", "lunch", "gym", "hangout", "party", "appointment", "work", "coffee", "drinks", "tutorial" ]
+NOT_GOING_OUT_KEYWORDS = [ "lecture" ]
 
 def get_todays_events(service):
     """
@@ -50,8 +51,10 @@ def get_going_out_events(service):
 
 def is_going_out_event(event): 
     """ Returns True if the event is likely a 'going out' event. """ 
-    # 1. If event has a location
-    if "location" in event and event["location"].strip(): 
+    summary = event.get("summary", "").lower()
+    
+    # 1. If event has a location and not a lecture
+    if "location" in event and event["location"].strip() and not any(keyword in summary for keyword in NOT_GOING_OUT_KEYWORDS): 
         return True
     
     # # 2. If event summary contains keywords
@@ -109,6 +112,7 @@ def get_weather_recommendations(events):
         })
 
     return recommendations
+
 
 
 
