@@ -23,15 +23,26 @@ def get_todays_events(service):
     time_min = start_of_day.isoformat()
     time_max = end_of_day.isoformat()
 
-    events_result = service.events().list(
-        calendarId="primary",
-        timeMin=time_min,
-        timeMax=time_max,
-        singleEvents=True,
-        orderBy="startTime"
-    ).execute()
+    all_events = []
 
-    return events_result.get("items", [])
+    # 1. Fetch all calendars the user has access to
+    calendars = service.calendarList().list().execute().get("items", [])
+
+    for cal in calendars:
+        cal_id = cal["id"]
+
+        events_result = service.events().list(
+            calendarId=cal_id,
+            timeMin=time_min,
+            timeMax=time_max,
+            singleEvents=True,
+            orderBy="startTime"
+        ).execute()
+
+        events = events_result.get("items", [])
+        all_events.extend(events)
+
+    return all_events
 
 def get_going_out_events(service):
     events = get_todays_events(service)
@@ -98,5 +109,6 @@ def get_weather_recommendations(events):
         })
 
     return recommendations
+
 
 
