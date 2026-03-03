@@ -58,11 +58,11 @@ def get_weather(lat, lon, event_datetime):
     closest_idx = min(
         range(len(hourly_times)),
         key=lambda i: abs(hourly_times[i] - event_datetime)
-    )   
+    )
 
-    weather_code = hourly["weathercode"][idx]
-    temp = hourly["temperature_2m"][idx]
-    rain_chance = hourly["precipitation_probability"][idx]
+    weather_code = hourly["weathercode"][closest_idx]
+    temp = hourly["temperature_2m"][closest_idx]
+    rain_chance = hourly["precipitation_probability"][closest_idx]
     temp_max = response["daily"]["temperature_2m_max"][0]
     temp_min = response["daily"]["temperature_2m_min"][0]
 
@@ -92,12 +92,12 @@ def get_weather(lat, lon, event_datetime):
         "code": weather_code,
         "description": weather_types.get(weather_code, "Unknown"),
         "emoji": emoji_icons.get(weather_code, "❓"),
-        "temp": temp,  # event-time temperature
-        "temp_min": temp_min,  # daily min
-        "temp_max": temp_max,  # daily max
+        "temp": temp,
+        "temp_min": temp_min,
+        "temp_max": temp_max,
         "rain_chance": rain_chance,
         "event_time": event_datetime,
-        "matched_hour": hourly_times[closest_idx]  # for debugging
+        "matched_hour": hourly_times[closest_idx],
     }
 
 def format_weather(weather):
@@ -136,4 +136,3 @@ def needs_umbrella(weather):
     )
 
     return decision
-
