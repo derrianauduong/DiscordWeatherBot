@@ -45,24 +45,36 @@ async def daily_check():
         user_id = os.getenv("DISCORD_USER_ID")
 
         recs = get_weather_recommendations(events)
-        
+
         # 3. Build Message
+        tz = pytz.timezone("Australia/Sydney")
         message = f"<@{user_id}> 📅 **Today's Going-Out Summary:**\n\n"
+
         for r in recs:
             event = r["event"]
             weather = r["weather"]
             umbrella = r["umbrella"]
         
-            start = event["start"].get("dateTime", event["start"].get("date"))
-            summary = event["summary"]
-        
-            message += f"- **{summary}** at `{start}`\n"
+            start_info = event["start"]
+            start_str = start_info.get("dateTime") or start_info.get("date")
+            summary = event.get("summary", "Untitled Event")
+    
+            # Parse start time
+            if "T" in start_str:
+                # e.g. 2026-03-02T05:30:00Z
+                dt = datetime.fromisoformat(start_str.replace("Z", "+00:00")).astimezone(tz)
+                time_str = dt.strftime("%I:%M %p")  # e.g. 03:30 PM
+            else:
+                # All-day event
+                time_str = "All day"
+    
+            message += f"- **{summary}** at **{time_str}**\n"
             message += f"{weather['emoji']} {weather['description']}\n"
-            message += f"🌡️ Range: {weather['temp_min']}°C – {weather['temp_max']}°C\n"
+            message += f"🌡️ Day range: {weather['temp_min']}°C – {weather['temp_max']}°C\n"
             message += "→ Bring an umbrella.\n\n" if umbrella else "→ No umbrella needed.\n\n"
-        
+
         await channel.send(message)
-        last_run_date = now.date() # Only set this after success
+        last_run_date = now.date()
         print("Daily summary successfully sent.")
 
 @bot.event
