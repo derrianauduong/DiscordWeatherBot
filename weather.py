@@ -1,5 +1,7 @@
 import requests
 import re
+import pytz
+from datetime import datetime
 
 def extract_suburb(location: str) -> str | None:
     if not location:
@@ -136,3 +138,4 @@ def needs_umbrella(weather):
     )
 
     return decision
+
