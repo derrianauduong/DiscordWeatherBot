@@ -48,20 +48,24 @@ def get_weather(lat, lon, event_datetime):
     times = hourly["time"]
 
     # Convert event time to local timezone of the forecast
+    local_tz = pytz.timezone("Australia/Sydney")
+    
     if event_datetime.tzinfo is None:
-        event_datetime = pytz.timezone("Australia/Sydney").localize(event_datetime)
+        event_datetime = local_tz.localize(event_datetime)
     else:
-        event_datetime = event_datetime.astimezone(pytz.timezone("Australia/Sydney"))
-
-    # Parse hourly timestamps
-    hourly_times = [datetime.fromisoformat(t) for t in times]
-
+        event_datetime = event_datetime.astimezone(local_tz)
+    
+    # Parse hourly timestamps and localize them
+    hourly_times = [
+        local_tz.localize(datetime.fromisoformat(t))
+        for t in times
+    ]
+    
     # Find closest hour
     closest_idx = min(
         range(len(hourly_times)),
         key=lambda i: abs(hourly_times[i] - event_datetime)
     )
-
     weather_code = hourly["weathercode"][closest_idx]
     temp = hourly["temperature_2m"][closest_idx]
     rain_chance = hourly["precipitation_probability"][closest_idx]
@@ -138,4 +142,5 @@ def needs_umbrella(weather):
     )
 
     return decision
+
 
