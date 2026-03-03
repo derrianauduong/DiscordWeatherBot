@@ -45,12 +45,20 @@ def get_weather(lat, lon, event_datetime):
     hourly = response["hourly"]
     times = hourly["time"]
 
-    target = event_datetime.strftime("%Y-%m-%dT%H:00")
+    # Convert event time to local timezone of the forecast
+    if event_datetime.tzinfo is None:
+        event_datetime = pytz.timezone("Australia/Sydney").localize(event_datetime)
+    else:
+        event_datetime = event_datetime.astimezone(pytz.timezone("Australia/Sydney"))
 
-    if target not in times:
-        return None
+    # Parse hourly timestamps
+    hourly_times = [datetime.fromisoformat(t) for t in times]
 
-    idx = times.index(target)
+    # Find closest hour
+    closest_idx = min(
+        range(len(hourly_times)),
+        key=lambda i: abs(hourly_times[i] - event_datetime)
+    )   
 
     weather_code = hourly["weathercode"][idx]
     temp = hourly["temperature_2m"][idx]
@@ -84,22 +92,24 @@ def get_weather(lat, lon, event_datetime):
         "code": weather_code,
         "description": weather_types.get(weather_code, "Unknown"),
         "emoji": emoji_icons.get(weather_code, "❓"),
-        "temp": temp,
-        "temp_min": temp_min,
-        "temp_max": temp_max,
+        "temp": temp,  # event-time temperature
+        "temp_min": temp_min,  # daily min
+        "temp_max": temp_max,  # daily max
         "rain_chance": rain_chance,
-        "event_time": event_datetime
+        "event_time": event_datetime,
+        "matched_hour": hourly_times[closest_idx]  # for debugging
     }
 
 def format_weather(weather):
-    dt = weather["event_time"].strftime("%I:%M %p")
+    event_time = weather["event_time"].strftime("%I:%M %p")
+    matched = weather["matched_hour"].strftime("%I:%M %p")
 
     return (
-        f"{weather['emoji']} **Weather at {dt}**\n"
+        f"{weather['emoji']} **Weather at {event_time}** "
+        f"(closest forecast hour: {matched})\n"
         f"**Condition:** {weather['description']}\n"
-        f"**Current Temperature:** {weather['temp']}°C\n"
-        f"**Today's Min:** {weather['temp_min']}°C\n"
-        f"**Today's Max:** {weather['temp_max']}°C\n"
+        f"**Temperature:** {weather['temp']}°C\n"
+        f"**Day Range:** {weather['temp_min']}°C – {weather['temp_max']}°C\n"
         f"**Rain Chance:** {weather['rain_chance']}%\n"
     )
 
@@ -109,10 +119,21 @@ def needs_umbrella(weather):
 
     rainy_codes = {51, 53, 55, 61, 63, 65, 80, 81, 82}
 
+    decision = False
+    reason = "low rain + non-rainy code"
+
     if code in rainy_codes:
-        return True
+        decision = True
+        reason = f"rainy code {code}"
+    elif rain >= 50:
+        decision = True
+        reason = f"high rain chance {rain}%"
 
-    if rain >= 50:
-        return True
+    print(
+        f"[Umbrella debug] code={code}, rain={rain}%, "
+        f"event_time={weather['event_time']}, matched_hour={weather['matched_hour']}, "
+        f"decision={decision}, reason={reason}"
+    )
 
-    return False
+    return decision
+
