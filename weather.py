@@ -1,146 +1,128 @@
-import requests
+from datetime import datetime, timedelta
 import re
+
 import pytz
-from datetime import datetime
+import requests
+
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")
+
+WEATHER_TYPES = {
+    0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+    45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle",
+    53: "Moderate drizzle", 55: "Dense drizzle", 56: "Light freezing drizzle",
+    57: "Dense freezing drizzle", 61: "Slight rain", 63: "Moderate rain",
+    65: "Heavy rain", 66: "Light freezing rain", 67: "Heavy freezing rain",
+    71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+    77: "Snow grains", 80: "Slight rain showers", 81: "Moderate rain showers",
+    82: "Violent rain showers", 85: "Slight snow showers",
+    86: "Heavy snow showers", 95: "Thunderstorm",
+    96: "Thunderstorm with slight hail", 99: "Thunderstorm with heavy hail",
+}
+
+EMOJI_ICONS = {
+    0: "☀️", 1: "☀️", 2: "🌤️", 3: "☁️", 45: "🌫️", 48: "🌫️",
+    51: "🌦️", 53: "🌦️", 55: "🌦️", 56: "🌦️", 57: "🌦️",
+    61: "🌦️", 63: "🌧️", 65: "🌧️", 66: "🌧️", 67: "🌧️",
+    71: "❄️", 73: "❄️", 75: "❄️", 77: "❄️",
+    80: "🌧️", 81: "🌧️", 82: "🌧️", 85: "❄️", 86: "❄️",
+    95: "⛈️", 96: "⛈️", 99: "⛈️",
+}
+
+RAINY_CODES = {51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99}
+
 
 def extract_suburb(location: str) -> str | None:
     if not location:
         return None
+    cleaned = re.sub(r"\b\d{4}\b", "", location).strip(" ,")
+    parts = [part.strip() for part in cleaned.split(",") if part.strip()]
+    ignored = {"australia", "nsw", "new south wales"}
+    useful_parts = [part for part in parts if part.lower() not in ignored]
+    if useful_parts:
+        return useful_parts[-1]
+    words = cleaned.split()
+    return " ".join(words[-2:]) if len(words) >= 2 else cleaned or None
 
-    # If the location contains a comma, the suburb is usually after it
-    if "," in location:
-        parts = [p.strip() for p in location.split(",")]
-        return parts[-1]  # last part is usually the suburb
-
-    # Otherwise, take the last word or last two words
-    words = location.split()
-    if len(words) >= 2:
-        return " ".join(words[-2:])  # e.g., "Bondi Junction"
-    return words[-1]
 
 def geocode_suburb(suburb: str):
-    query = f"{suburb}, NSW, Australia"
-    url = "https://nominatim.openstreetmap.org/search"
-    params = {"format": "json", "q": query}
-
-    response = requests.get(url, params=params, headers={"User-Agent": "DiscordBot"})
+    response = requests.get(
+        "https://nominatim.openstreetmap.org/search",
+        params={"format": "json", "q": f"{suburb}, NSW, Australia", "limit": 1},
+        headers={"User-Agent": "DiscordWeatherBot/1.0"},
+        timeout=15,
+    )
+    response.raise_for_status()
     data = response.json()
-
     if not data:
         return None
-
-    lat = float(data[0]["lat"])
-    lon = float(data[0]["lon"])
-    return lat, lon
+    return float(data[0]["lat"]), float(data[0]["lon"])
 
 
-def get_weather(lat, lon, event_datetime):
-    url = (
-        "https://api.open-meteo.com/v1/forecast?"
-        f"latitude={lat}&longitude={lon}"
-        "&hourly=weathercode,temperature_2m,precipitation_probability"
-        "&daily=temperature_2m_max,temperature_2m_min"
-        "&timezone=auto"
+def _as_sydney_time(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if value.tzinfo is None:
+        return SYDNEY_TZ.localize(value)
+    return value.astimezone(SYDNEY_TZ)
+
+
+def get_weather(lat, lon, event_start=None, event_end=None):
+    """Return hourly weather covering an event, or the next two hours by default."""
+    start = _as_sydney_time(event_start) or datetime.now(SYDNEY_TZ)
+    end = _as_sydney_time(event_end) or (start + timedelta(hours=2))
+    if end <= start:
+        end = start + timedelta(hours=2)
+
+    response = requests.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={
+            "latitude": lat,
+            "longitude": lon,
+            "hourly": (
+                "temperature_2m,apparent_temperature,precipitation_probability,"
+                "weather_code,wind_speed_10m"
+            ),
+            "timezone": "Australia/Sydney",
+            "start_date": start.date().isoformat(),
+            "end_date": end.date().isoformat(),
+        },
+        timeout=15,
     )
-    response = requests.get(url).json()
-
-    hourly = response["hourly"]
-    times = hourly["time"]
-
-    # Convert event time to local timezone of the forecast
-    local_tz = pytz.timezone("Australia/Sydney")
-    
-    if event_datetime.tzinfo is None:
-        event_datetime = local_tz.localize(event_datetime)
-    else:
-        event_datetime = event_datetime.astimezone(local_tz)
-    
-    # Parse hourly timestamps and localize them
-    hourly_times = [
-        local_tz.localize(datetime.fromisoformat(t))
-        for t in times
+    response.raise_for_status()
+    hourly = response.json()["hourly"]
+    forecast_times = [
+        SYDNEY_TZ.localize(datetime.fromisoformat(value)) for value in hourly["time"]
     ]
-    
-    # Find closest hour
-    closest_idx = min(
-        range(len(hourly_times)),
-        key=lambda i: abs(hourly_times[i] - event_datetime)
-    )
-    weather_code = hourly["weathercode"][closest_idx]
-    temp = hourly["temperature_2m"][closest_idx]
-    rain_chance = hourly["precipitation_probability"][closest_idx]
-    temp_max = response["daily"]["temperature_2m_max"][0]
-    temp_min = response["daily"]["temperature_2m_min"][0]
+    indices = [
+        i for i, forecast_time in enumerate(forecast_times)
+        if forecast_time < end and forecast_time + timedelta(hours=1) > start
+    ]
+    if not indices:
+        raise ValueError("No hourly forecast is available for this event time.")
 
-    weather_types = {
-        0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-        45: "Fog", 48: "Depositing rime fog",
-        51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
-        61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
-        80: "Slight rain showers", 81: "Moderate rain showers", 82: "Violent rain showers",
-        71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
-        95: "Thunderstorm", 96: "Thunderstorm w/ slight hail", 99: "Thunderstorm w/ heavy hail"
-    }
-
-    emoji_icons = {
-        0: "☀️", 1: "☀️",
-        2: "🌤️",
-        3: "☁️",
-        45: "🌫️", 48: "🌫️",
-        51: "🌦️", 53: "🌦️", 55: "🌦️",
-        61: "🌧️", 63: "🌧️", 65: "🌧️",
-        80: "🌧️", 81: "🌧️", 82: "🌧️",
-        71: "❄️", 73: "❄️", 75: "❄️",
-        95: "⛈️", 96: "⛈️", 99: "⛈️",
-    }
+    temperatures = [hourly["temperature_2m"][i] for i in indices]
+    feels_like = [hourly["apparent_temperature"][i] for i in indices]
+    rain_chances = [hourly["precipitation_probability"][i] or 0 for i in indices]
+    winds = [hourly["wind_speed_10m"][i] for i in indices]
+    representative_index = indices[rain_chances.index(max(rain_chances))]
+    code = hourly["weather_code"][representative_index]
 
     return {
-        "code": weather_code,
-        "description": weather_types.get(weather_code, "Unknown"),
-        "emoji": emoji_icons.get(weather_code, "❓"),
-        "temp": temp,
-        "temp_min": temp_min,
-        "temp_max": temp_max,
-        "rain_chance": rain_chance,
-        "event_time": event_datetime,
-        "matched_hour": hourly_times[closest_idx],
+        "code": code,
+        "description": WEATHER_TYPES.get(code, "Unknown conditions"),
+        "emoji": EMOJI_ICONS.get(code, "❓"),
+        "min_temp": min(temperatures),
+        "max_temp": max(temperatures),
+        "min_feels_like": min(feels_like),
+        "max_feels_like": max(feels_like),
+        "rain_chance": max(rain_chances),
+        "wind_speed": max(winds),
+        "forecast_start": start,
+        "forecast_end": end,
     }
 
-def format_weather(weather):
-    event_time = weather["event_time"].strftime("%I:%M %p")
-    matched = weather["matched_hour"].strftime("%I:%M %p")
-
-    return (
-        f"{weather['emoji']} **Weather at {event_time}** "
-        f"(closest forecast hour: {matched})\n"
-        f"**Condition:** {weather['description']}\n"
-        f"**Temperature:** {weather['temp']}°C\n"
-        f"**Day Range:** {weather['temp_min']}°C – {weather['temp_max']}°C\n"
-        f"**Rain Chance:** {weather['rain_chance']}%\n"
-    )
 
 def needs_umbrella(weather):
-    code = weather["code"]
-    rain = weather["rain_chance"]
-
-    rainy_codes = {51, 53, 55, 61, 63, 65, 80, 81, 82}
-
-    decision = False
-    reason = "low rain + non-rainy code"
-
-    if code in rainy_codes:
-        decision = True
-        reason = f"rainy code {code}"
-    elif rain >= 50:
-        decision = True
-        reason = f"high rain chance {rain}%"
-
-    print(
-        f"[Umbrella debug] code={code}, rain={rain}%, "
-        f"event_time={weather['event_time']}, matched_hour={weather['matched_hour']}, "
-        f"decision={decision}, reason={reason}"
-    )
-
-    return decision
-
-
+    return weather["code"] in RAINY_CODES or weather["rain_chance"] >= 40
