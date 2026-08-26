@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import pytz
 from datetime import datetime
 from event_logic import get_weather_recommendations, get_todays_events, get_going_out_events
-from weather import get_weather, format_weather
+from weather import get_weather, needs_umbrella
 from google_auth import get_calendar_service
 import os
 
@@ -17,65 +17,53 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 service = get_calendar_service()
 
-last_run_date = None
+
+def format_weather(weather, umbrella):
+    return (
+        f"{weather['emoji']} {weather['description']}\n"
+        f"🌡️ Event range: {weather['min_temp']:.1f}°C–{weather['max_temp']:.1f}°C\n"
+        f"🧥 Feels like: {weather['min_feels_like']:.1f}°C–"
+        f"{weather['max_feels_like']:.1f}°C\n"
+        f"🌧️ Rain chance: {weather['rain_chance']:.0f}%\n"
+        f"💨 Wind: up to {weather['wind_speed']:.0f} km/h\n"
+        + ("→ Bring an umbrella.\n" if umbrella else "→ No umbrella needed.\n")
+    )
 
 @tasks.loop(minutes=1)
 async def daily_check():
-    global last_run_date
     tz = pytz.timezone("Australia/Sydney")
     now = datetime.now(tz)
 
-    # 1. Check time and date
-    if now.hour == 7 and last_run_date != now.date():
-        print(f"Check triggered at {now}")
-        
-        events = get_going_out_events(service)
-        
-        if not events:
-            # OPTIONAL: Don't set last_run_date here if you want it to 
-            # keep checking every minute until an event is found 
-            # (though usually, if it's empty at 7am, it stays empty).
-            print("No events found. Skipping today.")
-            last_run_date = now.date() 
-            return
+    # Run at 7:00 AM Sydney time
+    if now.hour == 7 and now.minute == 0:
+        channel = bot.get_channel(1463507490720448678)
 
-        # 2. Get Channel (Use fetch to be safe)
-        channel_id = int(os.getenv("DISCORD_CHANNEL_ID"))
-        channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
-        user_id = os.getenv("DISCORD_USER_ID")
+        events = get_going_out_events(service)
+        if not events:
+            return
 
         recs = get_weather_recommendations(events)
 
-        # 3. Build Message
-        tz = pytz.timezone("Australia/Sydney")
-        message = f"<@{user_id}> 📅 **Today's Going-Out Summary:**\n\n"
-
+        message = f"<@{467970434235891712}> **Today's Going-Out Weather Summary:**\n\n"
         for r in recs:
             event = r["event"]
             weather = r["weather"]
-            umbrella = r["umbrella"]
-        
-            start_info = event["start"]
-            start_str = start_info.get("dateTime") or start_info.get("date")
-            summary = event.get("summary", "Untitled Event")
-    
-            # Parse start time
-            if "T" in start_str:
-                # e.g. 2026-03-02T05:30:00Z
-                dt = datetime.fromisoformat(start_str.replace("Z", "+00:00")).astimezone(tz)
-                time_str = dt.strftime("%I:%M %p")  # e.g. 03:30 PM
+
+            summary = event["summary"]
+            start_str = event["start"].get("dateTime")
+            if start_str:
+                start = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                start_label = start.astimezone(tz).strftime("%I:%M %p")
             else:
-                # All-day event
-                time_str = "All day"
-    
-            message += f"- **{summary}** at **{time_str}**\n"
-            message += f"{weather['emoji']} {weather['description']}\n"
-            message += f"🌡️ Day range: {weather['temp_min']}°C – {weather['temp_max']}°C\n"
-            message += "→ Bring an umbrella.\n\n" if umbrella else "→ No umbrella needed.\n\n"
+                start_label = "All day"
+
+            message += f"- **{summary}** at **{start_label}**\n"
+            if weather is None:
+                message += "⚠️ Event-time forecast unavailable.\n\n"
+            else:
+                message += format_weather(weather, r["umbrella"]) + "\n"
 
         await channel.send(message)
-        last_run_date = now.date()
-        print("Daily summary successfully sent.")
 
 @bot.event
 async def on_ready():
@@ -87,22 +75,19 @@ async def on_ready():
 
 @bot.command()
 async def ping(ctx):
-    channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-    user_id = int(os.getenv("DISCORD_USER_ID"))
-    await channel.send(f"<@{user_id}>")
+    await ctx.send("Pong!")
 
 @bot.command()
 async def weather(ctx):
+    # Sydney coordinates
     lat = -33.8688
     lon = 151.2093
-    now = datetime.now(pytz.timezone("Australia/Sydney"))
 
-    w = get_weather(lat, lon, now)
-    if not w:
-        await ctx.send("No weather data available.")
-        return
-
-    await ctx.send(format_weather(w))
+    report = get_weather(lat, lon)
+    await ctx.send(
+        "**Weather for the next two hours:**\n"
+        + format_weather(report, needs_umbrella(report))
+    )
 
 @bot.tree.command(name="events", description="Show today's calendar events")
 async def events(interaction: discord.Interaction):
@@ -114,7 +99,7 @@ async def events(interaction: discord.Interaction):
         await interaction.followup.send("No events scheduled for today.")
         return
 
-    message = "**Today's Events:**\n"
+    message = "**Today's Going-Out Events:**\n"
     for event in events:
         start_str = event["start"].get("dateTime")
 
@@ -164,7 +149,3 @@ async def going_out(interaction: discord.Interaction):
     await interaction.followup.send(message)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
-
-
-
-
