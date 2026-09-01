@@ -34,14 +34,19 @@ def get_going_out_events(service):
 
 
 def is_going_out_event(event):
+    summary = event.get("summary", "").lower()
+
+    if "tutoring" or "alchemy" in summary:
+        return False
+
     if event.get("location", "").strip():
         return True
 
-    summary = event.get("summary", "").lower()
     if any(keyword in summary for keyword in GOING_OUT_KEYWORDS):
         return True
 
-    if event.get("colorId") in GOING_OUT_COLOUR_IDS:
+    colour_id = event.get("eventLabelId") or event.get("colorId")
+    if colour_id in GOING_OUT_COLOUR_IDS:
         return True
 
     start_str = event.get("start", {}).get("dateTime")
@@ -49,6 +54,7 @@ def is_going_out_event(event):
         start = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
         if start.astimezone(SYDNEY_TZ).hour >= 17:
             return True
+
     return False
 
 
