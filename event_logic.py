@@ -37,9 +37,6 @@ def get_going_out_events(service):
 def is_going_out_event(event):
     summary = event.get("summary", "").lower()
 
-    if any(keyword in summary for keyword in EXCLUDED_KEYWORDS):
-        return False
-
     if event.get("location", "").strip():
         return True
 
@@ -50,6 +47,9 @@ def is_going_out_event(event):
     if colour_id in GOING_OUT_COLOUR_IDS:
         return True
 
+    if any(keyword in summary for keyword in EXCLUDED_KEYWORDS):
+        return False
+    
     start_str = event.get("start", {}).get("dateTime")
     if start_str:
         start = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
