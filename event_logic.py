@@ -59,12 +59,6 @@ def is_going_out_event(event):
 
     if any(keyword in summary for keyword in EXCLUDED_KEYWORDS):
         return False
-    
-    start_str = event.get("start", {}).get("dateTime")
-    if start_str:
-        start = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-        if start.astimezone(SYDNEY_TZ).hour >= 17:
-            return True
 
     return False
 
