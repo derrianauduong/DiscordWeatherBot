@@ -99,7 +99,7 @@ async def events(interaction: discord.Interaction):
         await interaction.followup.send("No events scheduled for today.")
         return
 
-    message = "**Today's Going-Out Events:**\n"
+    message = "**Today's Events:**\n"
     for event in events:
         start_str = event["start"].get("dateTime")
 
