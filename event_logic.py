@@ -18,16 +18,26 @@ GOING_OUT_COLOUR_IDS = {"12", "17", "24"}
 
 def get_todays_events(service):
     now = datetime.now(SYDNEY_TZ)
-    start_of_day = SYDNEY_TZ.localize(datetime(now.year, now.month, now.day))
+    start_of_day = SYDNEY_TZ.localize(
+        datetime(now.year, now.month, now.day)
+    )
     end_of_day = start_of_day + timedelta(days=1)
-    result = service.events().list(
-        calendarId="primary",
-        timeMin=start_of_day.isoformat(),
-        timeMax=end_of_day.isoformat(),
-        singleEvents=True,
-        orderBy="startTime",
-    ).execute()
-    return result.get("items", [])
+
+    calendars = service.calendarList().list().execute()
+    all_events = []
+
+    for calendar in calendars.get("items", []):
+        result = service.events().list(
+            calendarId=calendar["id"],
+            timeMin=start_of_day.isoformat(),
+            timeMax=end_of_day.isoformat(),
+            singleEvents=True,
+            orderBy="startTime",
+        ).execute()
+
+        all_events.extend(result.get("items", []))
+
+    return all_events
 
 
 def get_going_out_events(service):
