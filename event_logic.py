@@ -10,7 +10,7 @@ GOING_OUT_KEYWORDS = {
     "work", "coffee", "drinks", "exam", "class", "tutorial",
 }
 
-EXCLUDED_KEYWORDS = {"tutoring", "alchemy", "dupixent"}
+EXCLUDED_KEYWORDS = {"tutoring", "alchemy", "dupixent", "lecture", "laboratory"}
 
 # Banana, sage, lavender, amethyst
 GOING_OUT_COLOUR_IDS = {"12", "13", "17", "24"}
@@ -47,9 +47,6 @@ def get_going_out_events(service):
 def is_going_out_event(event):
     summary = event.get("summary", "").lower()
 
-    if event.get("location", "").strip():
-        return True
-
     if any(keyword in summary for keyword in GOING_OUT_KEYWORDS):
         return True
 
@@ -59,6 +56,9 @@ def is_going_out_event(event):
 
     if any(keyword in summary for keyword in EXCLUDED_KEYWORDS):
         return False
+
+    if event.get("location", "").strip():
+        return True
 
     return False
 
