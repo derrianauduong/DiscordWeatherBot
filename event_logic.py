@@ -7,13 +7,13 @@ from weather import extract_suburb, geocode_suburb, get_weather, needs_umbrella
 SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 GOING_OUT_KEYWORDS = {
     "dinner", "lunch", "gym", "hangout", "party", "appointment",
-    "work", "coffee", "drinks", "exam", "class", "lecture", "tutorial",
+    "work", "coffee", "drinks", "exam", "class", "tutorial",
 }
 
-EXCLUDED_KEYWORDS = {"tutoring", "alchemy"}
+EXCLUDED_KEYWORDS = {"tutoring", "alchemy", "dupixent"}
 
-# Banana, lavender, amethyst
-GOING_OUT_COLOUR_IDS = {"12", "17", "24"}
+# Banana, sage, lavender, amethyst
+GOING_OUT_COLOUR_IDS = {"12", "13", "17", "24"}
 
 
 def get_todays_events(service):
